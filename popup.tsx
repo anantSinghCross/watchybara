@@ -2,20 +2,16 @@ import { useState } from "react"
 import './styles.css'
 
 function IndexPopup() {
-  const [data, setData] = useState("")
 
   return (
-    <div className="bg-blue-400">
-      <div className="rounded-2xl p-4 bg-blue-50 text-sm border-4 border-blue-400">
-        <h2>
-          Welcome to your{" "}
-          <a href="https://www.plasmo.com" target="_blank">
-            Plasmo
-          </a>{" "}
-          Extension!
-        </h2>
-        <input className="my-2 p-2 outline-blue-400 rounded-lg" onChange={(e) => setData(e.target.value)} value={data} />
-        <p>{data}</p>
+    <div className="bg-gray-900">
+      <div className="rounded-2xl p-10 w-max bg-gray-800 text-sm text-gray-300 border-8 border-gray-900">
+        <div className="flex flex-col items-center gap-4">
+          <h2>
+            Welcome to Watchybara!
+          </h2>
+          <button className="rounded-lg px-10 py-2 bg-gradient-to-tr from-blue-500 to-indigo-500 text-white text-nowrap hover:to-indigo-600 hover:from-blue-600 shadow-xl shadow-blue-500/50 hover:shadow-blue-500/30">Start Watchybara</button>
+        </div>
       </div>
     </div>
   )
