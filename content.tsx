@@ -5,28 +5,76 @@ export const config: PlasmoCSConfig = {
   matches: ["<all_urls>"],
 }
 
-const WatchybaraMain = () => {
-  return (
-    <div className="fixed bottom-6 right-6 z-[9999] bg-white shadow-lg rounded-2xl p-4 w-96">
-      <h2 className="text-xl font-bold">🦙 SnugLlama</h2>
-      <p className="text-sm">You're now in a video call</p>
-      {/* Video or WebRTC component goes here */}
-  </div>
-  )
-}
+const SIDEBAR_WIDTH = 200; // 96 * 4px (tailwind w-96)
 
-const SidebarContent = () => {
-  const [showMainWidget, setShowMainWidget] = useState(false);
+const WatchybaraSidebar = () => {
+  const [screenWidth, setScreenWidth] = useState(window.innerWidth);
 
   useEffect(() => {
-    chrome.runtime.onMessage.addListener((message) => {
-      if(message.type === "SHOW_WATCHYBARA_MAIN_WIDGET"){
-        setShowMainWidget(true);
-      }
-    })
-  }, [])
+    const handleResize = () => setScreenWidth(window.innerWidth);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
-  return showMainWidget ? <WatchybaraMain/> : null
-}
+  return (
+    <div
+      style={{
+        color: "white",
+        position: "absolute",
+        height: "100svh",
+        width: `${screenWidth}px`,
+        zIndex: 9999,
+        boxSizing: "border-box"
+      }}
+    >
+      <div
+        style={{
+          backgroundColor: "#1f2937",
+          width: `${SIDEBAR_WIDTH}px`,
+          position: "absolute",
+          top: "0px",
+          right: "0px"
+        }}
+      >
+        <h2 style={{ fontSize: "1.25rem", fontWeight: "bold" }}>🦙 SnugLlama</h2>
+        <p style={{ fontSize: "0.875rem" }}>You're now in a video call</p>
+        {/* Video or WebRTC component goes here */}
+      </div>
+    </div>
+  );
+};
+
+const SidebarContent = () => {
+  const [showSidebar, setShowSidebar] = useState(false);
+
+  useEffect(() => {
+    const handleMessage = (message: any) => {
+      if (message.type === "SHOW_WATCHYBARA_MAIN_WIDGET") {
+        setShowSidebar(true);
+      }
+    };
+    chrome.runtime.onMessage.addListener(handleMessage);
+    return () => {
+      chrome.runtime.onMessage.removeListener(handleMessage);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (showSidebar) {
+      // Shift page content to the left
+      document.body.style.transition = "margin-right 0.3s";
+      document.body.style.marginRight = `${SIDEBAR_WIDTH}px`;
+    } else {
+      // Restore page content
+      document.body.style.marginRight = "";
+    }
+    // Clean up on unmount
+    return () => {
+      document.body.style.marginRight = "";
+    };
+  }, [showSidebar]);
+
+  return showSidebar ? <WatchybaraSidebar /> : null;
+};
 
 export default SidebarContent
