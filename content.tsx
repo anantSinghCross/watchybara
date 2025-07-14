@@ -19,24 +19,28 @@ const WatchybaraSidebar = () => {
   return (
     <div
       style={{
-        color: "white",
+        color:"white",
         position: "absolute",
         height: "100svh",
-        width: `${screenWidth}px`,
+        width: `${screenWidth-15}px`,
         zIndex: 9999,
         boxSizing: "border-box"
       }}
     >
       <div
+        className=" p-2"
         style={{
+          padding: "15px",
+          borderRadius: "10px 0 0 10px",
           backgroundColor: "#1f2937",
           width: `${SIDEBAR_WIDTH}px`,
           position: "absolute",
           top: "0px",
-          right: "0px"
+          right: "0px",
+          height: "100svh"
         }}
       >
-        <h2 style={{ fontSize: "1.25rem", fontWeight: "bold" }}>🦙 SnugLlama</h2>
+        <h2 style={{ fontSize: "1.25rem", fontWeight: "bold" }}>📺 Watchybara</h2>
         <p style={{ fontSize: "0.875rem" }}>You're now in a video call</p>
         {/* Video or WebRTC component goes here */}
       </div>
@@ -63,7 +67,7 @@ const SidebarContent = () => {
     if (showSidebar) {
       // Shift page content to the left
       document.body.style.transition = "margin-right 0.3s";
-      document.body.style.marginRight = `${SIDEBAR_WIDTH}px`;
+      document.body.style.marginRight = `${SIDEBAR_WIDTH + 15+ 15}px`;
     } else {
       // Restore page content
       document.body.style.marginRight = "";
