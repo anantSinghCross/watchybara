@@ -1,7 +1,13 @@
-import { useState } from "react"
 import './styles.css'
 
 function IndexPopup() {
+
+  const handleClick = async () => {
+    const [tab] = await chrome.tabs.query({active: true, currentWindow: true});
+    if(tab.id){
+      chrome.tabs.sendMessage(tab.id, {type: "SHOW_WATCHYBARA_MAIN_WIDGET"});
+    }
+  }
 
   return (
     <div className="bg-gray-900">
@@ -10,7 +16,7 @@ function IndexPopup() {
           <h2>
             Welcome to Watchybara!
           </h2>
-          <button className="rounded-lg px-10 py-2 bg-gradient-to-tr from-blue-500 to-indigo-500 text-white text-nowrap hover:to-indigo-600 hover:from-blue-600 shadow-xl shadow-blue-500/50 hover:shadow-blue-500/30">Start Watchybara</button>
+          <button className="rounded-lg px-10 py-2 bg-gradient-to-tr from-blue-500 to-indigo-500 text-white text-nowrap hover:to-indigo-600 hover:from-blue-600 shadow-xl shadow-blue-500/50 hover:shadow-blue-500/30" onClick={handleClick}>Start Watchybara</button>
         </div>
       </div>
     </div>
