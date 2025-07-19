@@ -1,14 +1,17 @@
 import { useEffect, useState } from "react"
 import { type PlasmoCSConfig } from "~node_modules/plasmo/dist/type"
+import { io, Socket } from "socket.io-client"
 
 export const config: PlasmoCSConfig = {
   matches: ["<all_urls>"],
 }
 
 const SIDEBAR_WIDTH = 200; // 96 * 4px (tailwind w-96)
+const SERVER_URL = "https://google-meet-clone-server.onrender.com/"
 
 const WatchybaraSidebar = () => {
   const [screenWidth, setScreenWidth] = useState(window.innerWidth);
+  const [socket, setSocket] = useState<Socket | null>(null);
 
   useEffect(() => {
     const handleResize = () => setScreenWidth(window.innerWidth);
@@ -16,10 +19,28 @@ const WatchybaraSidebar = () => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  useEffect(() => {
+    // Connect to the signaling server
+    const s = io(SERVER_URL);
+    setSocket(s);
+
+    s.on("connect", () => {
+      console.log("Connected to signaling server", s.id);
+    });
+    s.on("disconnect", () => {
+      console.log("Disconnected from signaling server");
+    });
+    // Add more event listeners as needed
+
+    return () => {
+      s.disconnect();
+    };
+  }, []);
+
   return (
     <div
       style={{
-        color:"white",
+        color:"gray",
         position: "absolute",
         height: "100svh",
         width: `${screenWidth-15}px`,
@@ -32,7 +53,7 @@ const WatchybaraSidebar = () => {
         style={{
           padding: "15px",
           borderRadius: "10px 0 0 10px",
-          backgroundColor: "#1f2937",
+          backgroundColor: "#000000",
           width: `${SIDEBAR_WIDTH}px`,
           position: "absolute",
           top: "0px",
