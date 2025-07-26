@@ -1,6 +1,12 @@
 import cssText from "data-text:~style.css"
 import { useEffect, useRef, useState } from "react"
-import { IoCopyOutline } from "react-icons/io5"
+import {
+  IoCopyOutline,
+  IoMicOffOutline,
+  IoMicOutline,
+  IoVideocamOffOutline,
+  IoVideocamOutline
+} from "react-icons/io5"
 import Peer from "simple-peer"
 import { io, Socket } from "socket.io-client"
 
@@ -28,6 +34,8 @@ const SERVER_URL = "https://google-meet-clone-server.onrender.com/"
 
 const WatchybaraSidebar = () => {
   const peer = useRef(null)
+  const [isMuted, setIsMuted] = useState(false)
+  const [isVideoOff, setIsVideoOff] = useState(false)
   const [screenWidth, setScreenWidth] = useState(window.innerWidth)
   const [socket, setSocket] = useState<Socket | null>(null)
   const [mySocketId, setMySocketId] = useState<string | null>("")
@@ -91,7 +99,6 @@ const WatchybaraSidebar = () => {
         setStream(currentStream)
         myVideo.current.srcObject = currentStream
       })
-
     return () => {}
   }, [])
 
@@ -141,11 +148,33 @@ const WatchybaraSidebar = () => {
   }
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(mySocketId) // or any variable
+    await navigator.clipboard.writeText(mySocketId)
     setIsCopied(true)
     setTimeout(() => {
       setIsCopied(false)
     }, 2500)
+  }
+
+  const handleMute = () => {
+    setIsMuted((prev) => {
+      if (stream) {
+        stream.getAudioTracks().forEach((track) => {
+          track.enabled = prev // If currently muted, enable; if unmuted, disable
+        })
+      }
+      return !prev
+    })
+  }
+
+  const handleVideoToggle = () => {
+    setIsVideoOff((prev) => {
+      if (stream) {
+        stream.getVideoTracks().forEach((track) => {
+          track.enabled = prev // If currently video off, enable; if on, disable
+        })
+      }
+      return !prev
+    })
   }
 
   return (
@@ -210,12 +239,46 @@ const WatchybaraSidebar = () => {
           onClick={() => callFriend(friendSocketId)}>
           Invite
         </button>
-        <video
-          className="rounded-xl aspect-auto w-full -scale-x-100"
-          ref={myVideo}
-          muted
-          autoPlay
-        />
+        <div className="relative group">
+          <video
+            className="rounded-xl aspect-auto w-full -scale-x-100"
+            ref={myVideo}
+            muted
+            autoPlay
+          />
+          {isVideoOff && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-60 rounded-xl">
+              <span className="text-white text-lg font-bold">
+                {myName || "You"}
+              </span>
+            </div>
+          )}
+          {isMuted && (
+            <p className="text-white text-xs absolute top-0 left-0 p-1 m-2 rounded-md bg-blue-500 opacity-70">
+              <IoMicOffOutline size={15} />
+            </p>
+          )}
+          <div className="absolute flex gap-2 invisible right-0 bottom-0 m-2">
+            <button
+              className="group-hover:visible text-white p-1 bg-blue-500 hover:bg-blue-600 rounded-full shadow"
+              onClick={handleVideoToggle}>
+              {isVideoOff ? (
+                <IoVideocamOutline size={15} />
+              ) : (
+                <IoVideocamOffOutline size={15} />
+              )}
+            </button>
+            <button
+              className="group-hover:visible text-white p-1 bg-blue-500 hover:bg-blue-600 rounded-full shadow"
+              onClick={handleMute}>
+              {isMuted ? (
+                <IoMicOutline size={15} />
+              ) : (
+                <IoMicOffOutline size={15} />
+              )}
+            </button>
+          </div>
+        </div>
         <video
           className="rounded-xl aspect-auto w-full -scale-x-100"
           ref={myFriendsVideo}
