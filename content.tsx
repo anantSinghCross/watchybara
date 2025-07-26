@@ -4,6 +4,7 @@ import {
   IoCopyOutline,
   IoMicOffOutline,
   IoMicOutline,
+  IoSend,
   IoVideocamOffOutline,
   IoVideocamOutline
 } from "react-icons/io5"
@@ -27,6 +28,11 @@ interface Call {
   from: string
   friendName: string
   signal: object | null
+}
+
+interface Chat {
+  from: string
+  text: string
 }
 
 const SIDEBAR_WIDTH = 250 // 96 * 4px (tailwind w-96)
@@ -53,6 +59,10 @@ const WatchybaraSidebar = () => {
   })
   const myVideo = useRef(null)
   const myFriendsVideo = useRef(null)
+  const [chatInput, setChatInput] = useState("")
+  const [chatMessages, setChatMessages] = useState<Array<Chat>>([])
+  // Remove: const [dataChannel, setDataChannel] = useState(null)
+  const chatEndRef = useRef(null)
 
   // Effects
   useEffect(() => {
@@ -102,9 +112,22 @@ const WatchybaraSidebar = () => {
     return () => {}
   }, [])
 
+  useEffect(() => {
+    if (!socket) return
+    // Remove socket.io chatMessage handler
+    return () => {}
+  }, [socket])
+
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: "smooth" })
+    }
+  }, [chatMessages])
+
   // Handlers
   const callFriend = (friendSocketId: string) => {
     const newPeer = new Peer({ initiator: true, trickle: false, stream })
+    // Set up data channel for chat
     newPeer.on("signal", (data) => {
       socket.emit("callUser", {
         userToCall: friendSocketId,
@@ -115,6 +138,12 @@ const WatchybaraSidebar = () => {
     })
     newPeer.on("stream", (friendsStream) => {
       myFriendsVideo.current.srcObject = friendsStream
+    })
+    newPeer.on("data", (data) => {
+      setChatMessages((prev) => [
+        ...prev,
+        { from: friendSocketId, text: data.toString() }
+      ])
     })
     peer.current = newPeer
   }
@@ -137,6 +166,12 @@ const WatchybaraSidebar = () => {
     )
     newPeer.on("stream", (friendsStream) => {
       myFriendsVideo.current.srcObject = friendsStream
+    })
+    newPeer.on("data", (data) => {
+      setChatMessages((prev) => [
+        ...prev,
+        { from: call.from, text: data.toString() }
+      ])
     })
     newPeer.signal(call.signal)
     peer.current = newPeer
@@ -177,6 +212,17 @@ const WatchybaraSidebar = () => {
     })
   }
 
+  const sendMessage = () => {
+    if (chatInput.trim() && peer.current) {
+      peer.current.send(chatInput)
+      setChatMessages((prev) => [
+        ...prev,
+        { from: mySocketId, text: chatInput }
+      ])
+      setChatInput("")
+    }
+  }
+
   return (
     <div
       className=" text-gray-400"
@@ -189,7 +235,7 @@ const WatchybaraSidebar = () => {
         boxSizing: "border-box"
       }}>
       <div
-        className="flex flex-col gap-2"
+        className="flex flex-col justify-between gap-2"
         style={{
           pointerEvents: "auto",
           padding: "15px",
@@ -201,106 +247,150 @@ const WatchybaraSidebar = () => {
           right: "0px",
           height: "100svh"
         }}>
-        <div className="">
-          <div className="flex flex-col text-xs">
-            <div className="flex justify-between p-1">
-              <p>WatchID</p>
-              {isCopied && <p className=" animate-pulse">Copied!</p>}
-            </div>
-            <div className="flex items-center">
-              <span className="font-mono w-full text-white p-1 rounded bg-gray-800 ">
-                {mySocketId ? mySocketId : "..."}
-              </span>
-              <p className="text-gray-400 p-1 pl-2" onClick={handleCopy}>
-                <IoCopyOutline size={15} />
-              </p>
+        <div className="flex flex-col gap-2">
+          <div className="">
+            <div className="flex flex-col text-xs">
+              <div className="flex justify-between p-1">
+                <p>WatchID</p>
+                {isCopied && <p className=" animate-pulse">Copied!</p>}
+              </div>
+              <div className="flex items-center">
+                <span className="font-mono w-full text-white p-1 rounded bg-gray-800 ">
+                  {mySocketId ? (
+                    mySocketId
+                  ) : (
+                    <p className=" animate-pulse">...</p>
+                  )}
+                </span>
+                <p className="text-gray-400 p-1 pl-2" onClick={handleCopy}>
+                  <IoCopyOutline size={15} />
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-        <p className="text-xs">
-          Share your WatchID with the person you want to start the video call
-          with.
-        </p>
-        <input
-          className="p-1 rounded text-blue-400 font-mono text-xs bg-gray-800 border border-gray-600 focus:outline-none"
-          placeholder="Your Name..."
-          type="text"
-          onChange={(e) => setMyName(e.target.value)}
-        />
-        <input
-          className="p-1 rounded text-blue-400 font-mono text-xs bg-gray-800 border border-gray-600 focus:outline-none"
-          placeholder="Friend's WatchID here..."
-          type="text"
-          onChange={(e) => setFriendSocketId(e.target.value)}
-        />
-        <button
-          disabled={friendSocketId === ""}
-          className="rounded p-1 bg-gradient-to-tr from-blue-500 to-indigo-500 text-white hover:to-indigo-600 hover:from-blue-600 shadow-xl shadow-blue-500/50 hover:shadow-blue-500/30 disabled:from-gray-500 disabled:to-slate-500 disabled:shadow-none disabled:cursor-not-allowed"
-          onClick={() => callFriend(friendSocketId)}>
-          Invite
-        </button>
-        <div className="relative group">
+          <p className="text-xs">
+            Share your WatchID with the person you want to start the video call
+            with.
+          </p>
+          <input
+            className="p-1 rounded text-blue-400 font-mono text-xs bg-gray-800 border border-gray-600 focus:outline-none"
+            placeholder="Your Name..."
+            type="text"
+            onChange={(e) => setMyName(e.target.value)}
+          />
+          <input
+            className="p-1 rounded text-blue-400 font-mono text-xs bg-gray-800 border border-gray-600 focus:outline-none"
+            placeholder="Friend's WatchID here..."
+            type="text"
+            onChange={(e) => setFriendSocketId(e.target.value)}
+          />
+          <button
+            disabled={friendSocketId === ""}
+            className="rounded p-1 bg-gradient-to-tr from-blue-500 to-indigo-500 text-white hover:to-indigo-600 hover:from-blue-600 shadow-xl shadow-blue-500/50 hover:shadow-blue-500/30 disabled:from-gray-500 disabled:to-slate-500 disabled:shadow-none disabled:cursor-not-allowed"
+            onClick={() => callFriend(friendSocketId)}>
+            Invite
+          </button>
+          <div className="relative group">
+            <video
+              className="rounded-xl aspect-auto w-full -scale-x-100"
+              ref={myVideo}
+              muted
+              autoPlay
+            />
+            {isVideoOff && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-60 rounded-xl">
+                <span className="text-white text-lg font-bold">
+                  {myName || "You"}
+                </span>
+              </div>
+            )}
+            {isMuted && (
+              <p className="text-white text-xs absolute top-0 left-0 p-1 m-2 rounded-md bg-blue-500 opacity-70">
+                <IoMicOffOutline size={15} />
+              </p>
+            )}
+            <div className="absolute flex gap-2 invisible right-0 bottom-0 m-2">
+              <button
+                className="group-hover:visible text-white p-1 bg-blue-500 hover:bg-blue-600 rounded-full shadow"
+                onClick={handleVideoToggle}>
+                {isVideoOff ? (
+                  <IoVideocamOutline size={15} />
+                ) : (
+                  <IoVideocamOffOutline size={15} />
+                )}
+              </button>
+              <button
+                className="group-hover:visible text-white p-1 bg-blue-500 hover:bg-blue-600 rounded-full shadow"
+                onClick={handleMute}>
+                {isMuted ? (
+                  <IoMicOutline size={15} />
+                ) : (
+                  <IoMicOffOutline size={15} />
+                )}
+              </button>
+            </div>
+          </div>
           <video
             className="rounded-xl aspect-auto w-full -scale-x-100"
-            ref={myVideo}
-            muted
+            ref={myFriendsVideo}
             autoPlay
           />
-          {isVideoOff && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-60 rounded-xl">
-              <span className="text-white text-lg font-bold">
-                {myName || "You"}
-              </span>
+          {call?.isReceivingCall && (
+            <div className="flex flex-col gap-2 text-xs rounded-lg bg-gray-500/50 p-2">
+              <p>{call?.friendName} is inviting you to join a video call</p>
+              <button
+                className="px-2 py-1 self-end bg-blue-600 hover:bg-blue-700 text-white rounded"
+                onClick={answerCall}>
+                Accept
+              </button>
             </div>
           )}
-          {isMuted && (
-            <p className="text-white text-xs absolute top-0 left-0 p-1 m-2 rounded-md bg-blue-500 opacity-70">
-              <IoMicOffOutline size={15} />
-            </p>
-          )}
-          <div className="absolute flex gap-2 invisible right-0 bottom-0 m-2">
+          {callAccepted && !callEnded && (
             <button
-              className="group-hover:visible text-white p-1 bg-blue-500 hover:bg-blue-600 rounded-full shadow"
-              onClick={handleVideoToggle}>
-              {isVideoOff ? (
-                <IoVideocamOutline size={15} />
-              ) : (
-                <IoVideocamOffOutline size={15} />
-              )}
+              className="text-xs px-2 py-1 self-end bg-red-600 hover:bg-red-700 text-white rounded"
+              onClick={leaveCall}>
+              Leave
             </button>
+          )}
+        </div>
+        {/* Chat area at the bottom */}
+        <div className="bg-gray-900 rounded-lg p-2 mt-2">
+          <div
+            className={`flex flex-col max-h-48 overflow-y-auto ${chatMessages?.length > 0 ? "mb-1" : ""}`}
+            style={{ scrollbarGutter: "stable" }}>
+            {chatMessages.map((msg, idx) => (
+              <div
+                key={idx}
+                className={
+                  msg.from === mySocketId
+                    ? "text-blue-400 text-xs mb-1 self-start"
+                    : "text-white text-xs mb-1 self-end"
+                }>
+                {msg.text}
+              </div>
+            ))}
+            <div ref={chatEndRef} />
+          </div>
+          <div className="flex gap-1">
+            <input
+              disabled={!peer.current}
+              type="text"
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") sendMessage()
+              }}
+              placeholder="Type a message..."
+              className="flex-1 rounded border border-gray-700 bg-gray-800 text-white p-1 text-xs focus:outline-none disabled:cursor-not-allowed"
+            />
             <button
-              className="group-hover:visible text-white p-1 bg-blue-500 hover:bg-blue-600 rounded-full shadow"
-              onClick={handleMute}>
-              {isMuted ? (
-                <IoMicOutline size={15} />
-              ) : (
-                <IoMicOffOutline size={15} />
-              )}
+              onClick={sendMessage}
+              className="bg-blue-500 text-white rounded p-1 text-xs disabled:bg-gray-600"
+              disabled={!chatInput.trim() || !peer.current}>
+              <IoSend size={15} />
             </button>
           </div>
         </div>
-        <video
-          className="rounded-xl aspect-auto w-full -scale-x-100"
-          ref={myFriendsVideo}
-          autoPlay
-        />
-        {call?.isReceivingCall && (
-          <div className="flex flex-col gap-2 text-xs rounded-lg bg-gray-500/50 p-2">
-            <p>{call?.friendName} is inviting you to join a video call</p>
-            <button
-              className="px-2 py-1 self-end bg-blue-600 hover:bg-blue-700 text-white rounded"
-              onClick={answerCall}>
-              Accept
-            </button>
-          </div>
-        )}
-        {callAccepted && !callEnded && (
-          <button
-            className="text-xs px-2 py-1 self-end bg-red-600 hover:bg-red-700 text-white rounded"
-            onClick={leaveCall}>
-            Leave
-          </button>
-        )}
       </div>
     </div>
   )
