@@ -63,6 +63,114 @@ const WatchybaraSidebar = () => {
   const [chatMessages, setChatMessages] = useState<Array<Chat>>([])
   // Remove: const [dataChannel, setDataChannel] = useState(null)
   const chatEndRef = useRef(null)
+  const [videoPresent, setVideoPresent] = useState(false)
+
+  // Add a flag to prevent feedback loop on remote seek
+  let isRemoteSeek = false
+
+  // Video synchronization functions
+  const getVideoInfo = () => {
+    // Netflix
+    const netflixVideo = document.querySelector("video") as HTMLVideoElement
+    if (netflixVideo) {
+      return {
+        currentTime: netflixVideo.currentTime,
+        duration: netflixVideo.duration,
+        paused: netflixVideo.paused,
+        playbackRate: netflixVideo.playbackRate,
+        platform: "netflix"
+      }
+    }
+
+    // Prime Video
+    const primeVideo = document.querySelector(
+      ".webPlayerElement video"
+    ) as HTMLVideoElement
+    if (primeVideo) {
+      return {
+        currentTime: primeVideo.currentTime,
+        duration: primeVideo.duration,
+        paused: primeVideo.paused,
+        playbackRate: primeVideo.playbackRate,
+        platform: "prime"
+      }
+    }
+
+    return null
+  }
+
+  const controlVideo = (action, data) => {
+    const video = (document.querySelector("video") ||
+      document.querySelector(".webPlayerElement video")) as HTMLVideoElement
+    if (!video) return
+
+    switch (action) {
+      case "play":
+        video.play()
+        break
+      case "pause":
+        video.pause()
+        break
+      case "seek":
+        if (Math.abs(video.currentTime - data.time) > 0.5) {
+          isRemoteSeek = true
+          video.currentTime = data.time
+        }
+        break
+      case "setPlaybackRate":
+        video.playbackRate = data.rate
+        break
+    }
+  }
+
+  const sendVideoCommand = (command: string, data?: object) => {
+    if (peer.current) {
+      peer.current.send(
+        JSON.stringify({
+          type: "video-control",
+          command,
+          data,
+          timestamp: Date.now()
+        })
+      )
+    }
+  }
+
+  const setupVideoMonitoring = () => {
+    const video = document.querySelector("video") as HTMLVideoElement
+    if (!video) {
+      setVideoPresent(false)
+      return
+    }
+    setVideoPresent(true)
+    video.addEventListener(
+      "play",
+      () => {
+        sendVideoCommand("play")
+      },
+      { passive: true }
+    )
+
+    video.addEventListener(
+      "pause",
+      () => {
+        sendVideoCommand("pause")
+      },
+      { passive: true }
+    )
+
+    video.addEventListener(
+      "seeked",
+      () => {
+        if (isRemoteSeek) {
+          isRemoteSeek = false
+          return // Don't send a sync if this was a remote-triggered seek
+        }
+        sendVideoCommand("seek", { time: video.currentTime })
+      },
+      { passive: true }
+    )
+  }
 
   // Effects
   useEffect(() => {
@@ -124,6 +232,32 @@ const WatchybaraSidebar = () => {
     }
   }, [chatMessages])
 
+  useEffect(() => {
+    // Setup video monitoring when component mounts
+    setupVideoMonitoring()
+
+    // Use MutationObserver to detect when video elements are added
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach((node) => {
+          if (node.nodeType === 1 && (node as Element).querySelector) {
+            const video = (node as Element).querySelector("video")
+            if (video) {
+              setupVideoMonitoring()
+            }
+          }
+        })
+      })
+    })
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    })
+
+    return () => observer.disconnect()
+  }, [])
+
   // Handlers
   const callFriend = (friendSocketId: string) => {
     const newPeer = new Peer({ initiator: true, trickle: false, stream })
@@ -140,10 +274,24 @@ const WatchybaraSidebar = () => {
       myFriendsVideo.current.srcObject = friendsStream
     })
     newPeer.on("data", (data) => {
-      setChatMessages((prev) => [
-        ...prev,
-        { from: friendSocketId, text: data.toString() }
-      ])
+      try {
+        const message = JSON.parse(data.toString())
+        if (message.type === "video-control") {
+          controlVideo(message.command, message.data)
+        } else {
+          // Handle chat messages
+          setChatMessages((prev) => [
+            ...prev,
+            { from: friendSocketId, text: data.toString() }
+          ])
+        }
+      } catch (e) {
+        // Handle plain text chat messages
+        setChatMessages((prev) => [
+          ...prev,
+          { from: friendSocketId, text: data.toString() }
+        ])
+      }
     })
     peer.current = newPeer
   }
@@ -168,10 +316,24 @@ const WatchybaraSidebar = () => {
       myFriendsVideo.current.srcObject = friendsStream
     })
     newPeer.on("data", (data) => {
-      setChatMessages((prev) => [
-        ...prev,
-        { from: call.from, text: data.toString() }
-      ])
+      try {
+        const message = JSON.parse(data.toString())
+        if (message.type === "video-control") {
+          controlVideo(message.command, message.data)
+        } else {
+          // Handle chat messages
+          setChatMessages((prev) => [
+            ...prev,
+            { from: call.from, text: data.toString() }
+          ])
+        }
+      } catch (e) {
+        // Handle plain text chat messages
+        setChatMessages((prev) => [
+          ...prev,
+          { from: call.from, text: data.toString() }
+        ])
+      }
     })
     newPeer.signal(call.signal)
     peer.current = newPeer
@@ -220,6 +382,14 @@ const WatchybaraSidebar = () => {
         { from: mySocketId, text: chatInput }
       ])
       setChatInput("")
+    }
+  }
+
+  // Add a button to sync current times
+  const handleSyncNow = () => {
+    const video = document.querySelector("video") as HTMLVideoElement
+    if (video) {
+      sendVideoCommand("seek", { time: video.currentTime })
     }
   }
 
@@ -344,6 +514,13 @@ const WatchybaraSidebar = () => {
                 Accept
               </button>
             </div>
+          )}
+          {callAccepted && !callEnded && videoPresent && (
+            <button
+              className="text-xs px-2 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white self-end"
+              onClick={handleSyncNow}>
+              Sync Now
+            </button>
           )}
           {callAccepted && !callEnded && (
             <button
