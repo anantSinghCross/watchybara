@@ -61,7 +61,6 @@ const WatchybaraSidebar = () => {
   const myFriendsVideo = useRef(null)
   const [chatInput, setChatInput] = useState("")
   const [chatMessages, setChatMessages] = useState<Array<Chat>>([])
-  // Remove: const [dataChannel, setDataChannel] = useState(null)
   const chatEndRef = useRef(null)
   const [videoPresent, setVideoPresent] = useState(false)
 
