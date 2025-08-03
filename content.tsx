@@ -418,7 +418,7 @@ const WatchybaraSidebar = () => {
         }}>
         <div className="flex flex-col gap-2">
           <div className="">
-            <div className="flex flex-col text-xs">
+            <div className="flex flex-col  ">
               <div className="flex justify-between p-1">
                 <p>WatchID</p>
                 {isCopied && <p className=" animate-pulse">Copied!</p>}
@@ -437,18 +437,18 @@ const WatchybaraSidebar = () => {
               </div>
             </div>
           </div>
-          <p className="text-xs">
+          <p className=" ">
             Share your WatchID with the person you want to start the video call
             with.
           </p>
           <input
-            className="p-1 rounded text-blue-400 font-mono text-xs bg-gray-800 border border-gray-600 focus:outline-none"
+            className="p-1 rounded text-blue-400 font-mono   bg-gray-800 border border-gray-600 focus:outline-none"
             placeholder="Your Name..."
             type="text"
             onChange={(e) => setMyName(e.target.value)}
           />
           <input
-            className="p-1 rounded text-blue-400 font-mono text-xs bg-gray-800 border border-gray-600 focus:outline-none"
+            className="p-1 rounded text-blue-400 font-mono   bg-gray-800 border border-gray-600 focus:outline-none"
             placeholder="Friend's WatchID here..."
             type="text"
             onChange={(e) => setFriendSocketId(e.target.value)}
@@ -474,7 +474,7 @@ const WatchybaraSidebar = () => {
               </div>
             )}
             {isMuted && (
-              <p className="text-white text-xs absolute top-0 left-0 p-1 m-2 rounded-md bg-blue-500 opacity-70">
+              <p className="text-white   absolute top-0 left-0 p-1 m-2 rounded-md bg-blue-500 opacity-70">
                 <IoMicOffOutline size={15} />
               </p>
             )}
@@ -505,7 +505,7 @@ const WatchybaraSidebar = () => {
             autoPlay
           />
           {call?.isReceivingCall && (
-            <div className="flex flex-col gap-2 text-xs rounded-lg bg-gray-500/50 p-2">
+            <div className="flex flex-col gap-2   rounded-lg bg-gray-500/50 p-2">
               <p>{call?.friendName} is inviting you to join a video call</p>
               <button
                 className="px-2 py-1 self-end bg-blue-600 hover:bg-blue-700 text-white rounded"
@@ -516,14 +516,14 @@ const WatchybaraSidebar = () => {
           )}
           {callAccepted && !callEnded && videoPresent && (
             <button
-              className="text-xs px-2 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white self-end"
+              className="  px-2 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white self-end"
               onClick={handleSyncNow}>
               Sync Now
             </button>
           )}
           {callAccepted && !callEnded && (
             <button
-              className="text-xs px-2 py-1 self-end bg-red-600 hover:bg-red-700 text-white rounded"
+              className="  px-2 py-1 self-end bg-red-600 hover:bg-red-700 text-white rounded"
               onClick={leaveCall}>
               Leave
             </button>
@@ -539,8 +539,8 @@ const WatchybaraSidebar = () => {
                 key={idx}
                 className={
                   msg.from === mySocketId
-                    ? "text-blue-400 text-xs mb-1 self-start"
-                    : "text-white text-xs mb-1 self-end"
+                    ? "text-blue-400   mb-1 self-start"
+                    : "text-white   mb-1 self-end"
                 }>
                 {msg.text}
               </div>
@@ -557,11 +557,11 @@ const WatchybaraSidebar = () => {
                 if (e.key === "Enter") sendMessage()
               }}
               placeholder="Type a message..."
-              className="flex-1 rounded border border-gray-700 bg-gray-800 text-white p-1 text-xs focus:outline-none disabled:cursor-not-allowed"
+              className="flex-1 rounded border border-gray-700 bg-gray-800 text-white p-1   focus:outline-none disabled:cursor-not-allowed"
             />
             <button
               onClick={sendMessage}
-              className="bg-blue-500 text-white rounded p-1 text-xs disabled:bg-gray-600"
+              className="bg-blue-500 text-white rounded p-1   disabled:bg-gray-600"
               disabled={!chatInput.trim() || !peer.current}>
               <IoSend size={15} />
             </button>
@@ -589,16 +589,45 @@ const SidebarContent = () => {
 
   useEffect(() => {
     if (showSidebar) {
-      // Shift page content to the left
-      document.body.style.transition = "margin-right 0.3s"
-      document.body.style.marginRight = `${SIDEBAR_WIDTH + 15 + 15}px`
+      // Create a wrapper if it doesn't exist
+      let wrapper = document.getElementById("watchybara-wrapper")
+      if (!wrapper) {
+        wrapper = document.createElement("div")
+        wrapper.id = "watchybara-wrapper"
+        wrapper.style.cssText = `
+          position: relative;
+          width: 100%;
+          transition: transform 0.3s ease, width 0.3s ease;
+        `
+
+        // Move all body children to the wrapper
+        const bodyChildren = Array.from(document.body.children)
+        bodyChildren.forEach((child) => {
+          if (child.id !== "watchybara-wrapper") {
+            wrapper.appendChild(child)
+          }
+        })
+        document.body.appendChild(wrapper)
+      }
+
+      // Translate left AND reduce width to make room for sidebar
+      wrapper.style.width = `calc(100% - ${SIDEBAR_WIDTH}px)`
     } else {
       // Restore page content
-      document.body.style.marginRight = ""
+      const wrapper = document.getElementById("watchybara-wrapper")
+      if (wrapper) {
+        wrapper.style.transform = ""
+        wrapper.style.width = "100%"
+      }
     }
+
     // Clean up on unmount
     return () => {
-      document.body.style.marginRight = ""
+      const wrapper = document.getElementById("watchybara-wrapper")
+      if (wrapper) {
+        wrapper.style.transform = ""
+        wrapper.style.width = "100%"
+      }
     }
   }, [showSidebar])
 
